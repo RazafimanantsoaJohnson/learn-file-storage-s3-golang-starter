@@ -276,6 +276,7 @@ function viewVideo(video) {
   }
 }
 
+
 async function deleteVideo() {
   if (!currentVideo) {
     alert('No video selected for deletion.');
