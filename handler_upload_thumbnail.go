@@ -47,6 +47,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	defer imageData.Close()
+
 	mediaType := fileHeader.Header.Get("Content-Type") // things are handled differently than the simple JSON requests
 	fileType, _, err := mime.ParseMediaType(mediaType)
 	fmt.Println("fileTypes: ", fileType, mediaType)
@@ -76,6 +77,8 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, 500, "unable to create file", err)
 		return
 	}
+	defer createdFile.Close()
+
 	io.Copy(createdFile, imageData) // populating the new file content
 	thumbnailMetadataURL := fmt.Sprintf("http://localhost:%v/assets/%v.%v", cfg.port, b64EncodedFilename, fileExt)
 	videoMetadata.ThumbnailURL = &thumbnailMetadataURL
