@@ -133,6 +133,9 @@ func main() {
 	mux.HandleFunc("DELETE /api/videos/{videoID}", cfg.handlerVideoMetaDelete)
 
 	mux.HandleFunc("POST /admin/reset", cfg.handlerReset)
+	mux.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
+		getVideoAspectRatio("/home/johnson/workspace/github.com/razafimanantsoa_johnson/learn-file-storage-s3-golang-starter/samples/boots-video-vertical.mp4")
+	})
 
 	srv := &http.Server{
 		Addr:    ":" + port,
