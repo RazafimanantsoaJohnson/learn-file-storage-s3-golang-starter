@@ -89,6 +89,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer os.Remove("tubely-upload." + fileExt)
 
 	_, err = io.Copy(newFile, videoData)
+
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to handle the file", err)
 		return
@@ -97,10 +98,21 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	newFile.Seek(0, io.SeekStart) //move the pointer of the file back to beginning
 	fmt.Println("filename: ", newFile.Name())
 	aspectRatio, err := getVideoAspectRatio(newFile.Name())
+	// aspectRatio := "16:9" // hardcoded for windows
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to get the aspect ratio of video", err)
 		return
 	}
+
+	newVidPath, err := processVideoFastStart(newFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to have preprocess ", err)
+		return
+	}
+	processedVidFile, err := os.Open(newVidPath)
+	defer processedVidFile.Close()
+	defer os.Remove(newVidPath)
+
 	fileS3Dir := ""
 	switch aspectRatio {
 	case "16:9":
@@ -118,14 +130,16 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	_, err = cfg.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket:      &cfg.s3Bucket,
 		Key:         &videoKey,
-		Body:        newFile,
+		Body:        processedVidFile,
 		ContentType: &videoType,
 	})
+
 	if err != nil {
 		log.Printf("%v", err)
 		respondWithError(w, http.StatusInternalServerError, "unable to send the file to S3", err)
 		return
 	}
+	fmt.Println(newVidPath)
 
 	newVideoURL := fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", cfg.s3Bucket, cfg.s3Region, videoKey)
 	curVideo.VideoURL = &newVideoURL
@@ -157,4 +171,16 @@ func getVideoAspectRatio(filePath string) (string, error) {
 		return "other", nil
 	}
 	return potentialResult, nil
+}
+
+func processVideoFastStart(filePath string) (string, error) {
+	inputFile := strings.Split(filePath, ".")
+	outputFilePath := fmt.Sprintf("%v.processed.%v", inputFile[0], inputFile[1])
+	ffmpegCmd := exec.Command("ffmpeg", "-i", filePath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", outputFilePath)
+	err := ffmpegCmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	return outputFilePath, nil
 }
