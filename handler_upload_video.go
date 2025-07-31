@@ -110,8 +110,8 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	processedVidFile, err := os.Open(newVidPath)
-	defer processedVidFile.Close()
 	defer os.Remove(newVidPath)
+	defer processedVidFile.Close()
 
 	fileS3Dir := ""
 	switch aspectRatio {
